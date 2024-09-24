@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Terraform: Building A Safe Space</title>
+    <link rel="stylesheet" href="../Reveal.js/css/reveal.css">
+    <link rel="stylesheet" href="../Reveal.js/css/theme/blood.css" id="theme">
+
+    <style>
+        .reveal h2
+        {
+            text-transform: none;
+            font-size: 60px;
+        }
+
+        .reveal ul li, .reveal p
+        {
+            font-size: 34px;
+        }
+
+        .highlight
+        {
+            color: green
+        }
+
+        .align-left
+        {
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+<div class="reveal">
+    <div class="slides">
+        <section data-background-image="./images/1.png" data-background-size="contain">
+        </section>
+        <section data-background-image="./images/2.png" data-background-size="contain"></section>
+        <section data-background-image="./images/3.png" data-background-size="contain"></section>
+        <section data-background-image="./images/4.png" data-background-size="contain"></section>
+        <section data-background-image="./images/5.png" data-background-size="contain"></section>
+        <section data-background-image="./images/6.png" data-background-size="contain"></section>
+        <section data-background-image="./images/7.png" data-background-size="contain"></section>
+        <section data-background-image="./images/8.png" data-background-size="contain">
+
+        </section>
+        <section data-background-image="./images/9.png" data-background-size="contain"></section>
+        <section data-background-image="./images/demo_blank.png" data-background-size="contain">
+            <h2>Built-in help from Node.js</h2>
+            <p>testing testing</p>
+                    <div>
+                        <video controls
+                               style="
+                               width: 100%;
+                               max-width: 640px;
+                               height: auto;
+                               position: relative;
+                               top: 50px; left: 100px;">
+                            <source src="./videos/node-help-example.mp4" />
+                        </video>
+                    </div>
+        </section>
+        <section data-background-image="./images/10.png" data-background-size="contain"></section>
+        <section data-background-image="./images/11.png" data-background-size="contain"></section>
+        <section data-background-image="./images/12.png" data-background-size="contain"></section>
+        <section>
+            <h2>Built-in help from Node.js</h2>
+            <ul>
+                <li>Type "node --help", this happens:
+                    <div>
+                        <video controls>
+                            <source src="./videos/node-help-example.mp4" />
+                        </video>
+                    </div>
+                </li>
+            </ul>
+        </section>
+    </div>
+</div>
+
+<script src="../Reveal.js/js/reveal.js"></script>
+<script>
+    Reveal.initialize();
+
+    var link = document.createElement( 'link' );
+    link.rel = 'stylesheet';
+    link.type = 'text/css';
+    link.href = window.location.search.match( /print-pdf/gi ) ? '../reveal.js/css/print/pdf.css' : '../reveal.js/css/print/paper.css';
+    document.getElementsByTagName( 'head' )[0].appendChild( link );
+</script>
+</body>
+</html>

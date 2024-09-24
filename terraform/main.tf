@@ -26,9 +26,6 @@
 #### AWS Provider Configuration ####
 # ---------------------------------------------------------------------------------------------------------------------
 
-# Specifies the eu-west-1 region, which is within the European Union, ensuring data residency
-# compliance with GDPR. This ensures that all resources, including data, are hosted within the
-# EU, adhering to GDPR’s data residency requirements.
 provider "aws" {
   region     = "eu-west-1"
 
@@ -42,10 +39,7 @@ provider "aws" {
 # ---------------------------------------------------------------------------------------------------------------------
 
 ## VPC for isolation ##
-
-# Creates an isolated virtual network for your resources, ensuring a secure and controlled
-# environment. Isolation reduces the risk of unauthorized access to personal data.
-resource "aws_vpc" "main" {
+resource "aws_vpc" "gdpr_vpc" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_support   = true
   enable_dns_hostnames = true
@@ -55,68 +49,62 @@ resource "aws_vpc" "main" {
 }
 
 ## Subnet for resources ##
-
-# Provides a segregated subnet within the VPC, further isolating resources and controlling
-# network access to protect personal data.
-resource "aws_subnet" "main_subnet" {
-  vpc_id            = aws_vpc.main.id
+resource "aws_subnet" "public_subnet" {
+  vpc_id            = aws_vpc.gdpr_vpc.id
   cidr_block        = "10.0.1.0/24"
   availability_zone = "eu-west-1a"
   tags = {
-    Name = "main_subnet"
+    Name = "public_subnet"
   }
 }
-resource "aws_subnet" "main_subnet_b" {
-  vpc_id            = aws_vpc.main.id
+resource "aws_subnet" "private_subnet" {
+  vpc_id            = aws_vpc.gdpr_vpc.id
   cidr_block        = "10.0.2.0/24"
   availability_zone = "eu-west-1b"
   tags = {
-    Name = "main_subnet_b"
+    Name = "private_subnet"
   }
 }
 
 ## RDS Subnet Group for PostgreSQL ##
-resource "aws_db_subnet_group" "db_main" {
-  name       = "db-main-subnet-group"
-  subnet_ids = [aws_subnet.main_subnet.id, aws_subnet.main_subnet_b.id]
+resource "aws_db_subnet_group" "gdpr_db_subnet_group" {
+  name       = "gdpr-db-subnet-group"
+  subnet_ids = [
+    aws_subnet.public_subnet.id,
+    aws_subnet.private_subnet.id
+  ]
 
   tags = {
-    Name = "db-main-subnet-group"
+    Name = "gdpr_db_subnet_group"
   }
 }
 
 ## Internet Gateway ##
-
-# Allows secure and controlled access to the internet for resources in the VPC, essential for
-# securely transmitting data when necessary.
-resource "aws_internet_gateway" "main_igw" {
-  vpc_id = aws_vpc.main.id
+resource "aws_internet_gateway" "gdpr_igw" {
+  vpc_id = aws_vpc.gdpr_vpc.id
   tags = {
-    Name = "main_igw"
+    Name = "gdpr_igw"
   }
 }
 
 ## Route Table & Associate Subnet with Route Table ##
-
-# Configures routing within the VPC to control traffic, ensuring that data flows securely
-# within the network and to the internet only as required.
-resource "aws_route_table" "main_rt" {
-  vpc_id = aws_vpc.main.id
+resource "aws_route_table" "gdpr_rt" {
+  vpc_id = aws_vpc.gdpr_vpc.id
   route {
     cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.main_igw.id
+    gateway_id = aws_internet_gateway.gdpr_igw.id
   }
   tags = {
-    Name = "main_rt"
+    Name = "gdpr_rt"
   }
 }
-resource "aws_route_table_association" "main_rta" {
-  subnet_id      = aws_subnet.main_subnet.id
-  route_table_id = aws_route_table.main_rt.id
+resource "aws_route_table_association" "public_gdpr_rta" {
+  subnet_id      = aws_subnet.public_subnet.id
+  route_table_id = aws_route_table.gdpr_rt.id
 }
-resource "aws_route_table_association" "main_rta_b" {
-  subnet_id      = aws_subnet.main_subnet_b.id
-  route_table_id = aws_route_table.main_rt.id
+resource "aws_route_table_association" "private_gdpr_rta" {
+  subnet_id      = aws_subnet.private_subnet.id
+  route_table_id = aws_route_table.gdpr_rt.id
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -124,11 +112,7 @@ resource "aws_route_table_association" "main_rta_b" {
 # ---------------------------------------------------------------------------------------------------------------------
 
 ## KMS (key management service) Key for Encryption ##
-
-# Manages encryption keys for data encryption, ensuring that all data at rest (in S3 buckets
-# and RDS) is encrypted using a KMS key. Key rotation is enabled to enhance security, as
-# recommended by GDPR.
-resource "aws_kms_key" "mykey" {
+resource "aws_kms_key" "gdpr_key" {
   description             = "This key is used to encrypt bucket objects"
   deletion_window_in_days = 10
   enable_key_rotation     = true
@@ -166,45 +150,39 @@ resource "aws_kms_key" "mykey" {
 
 
 ## S3 Bucket & S3 Bucket for Logs ##
-
-# Stores data securely in S3 buckets, with logging and encryption configured to protect
-# personal data and ensure auditability.
-resource "aws_s3_bucket" "mybucket" {
-  bucket = "my-unique-gdpr-compliant-bucket-${random_string.bucket_suffix.result}"
+resource "aws_s3_bucket" "gdpr_s3_bucket" {
+  bucket = "gdpr-compliant-bucket-${random_string.bucket_suffix.result}"
 
   tags = {
     Name        = "gdpr_s3_bucket"
     Environment = "production"
   }
 }
-resource "aws_s3_bucket" "log_bucket" {
-  bucket = "my-unique-gdpr-log-bucket-12345"
+resource "aws_s3_bucket" "gdpr_s3_log_bucket" {
+  bucket = "gdpr-log-bucket-${random_string.bucket_suffix.result}"
   tags = {
-    Name = "gdpr_log_bucket"
+    Name = "gdpr_s3_log_bucket"
     Environment = "production"
   }
 }
 
 ## S3 Bucket & S3 Bucket for Logs with Encryption ##
-
-# Enforces encryption of data stored in S3 using KMS keys, ensuring that all data is 
-# encrypted at rest as required by GDPR.
-resource "aws_s3_bucket_server_side_encryption_configuration" "secure_s3_mybucket" {
-  bucket = aws_s3_bucket.mybucket.id
+resource "aws_s3_bucket_server_side_encryption_configuration" "secure_s3_gdpr_s3_bucket" {
+  bucket = aws_s3_bucket.gdpr_s3_bucket.id
 
   rule {
     apply_server_side_encryption_by_default {
-      kms_master_key_id = aws_kms_key.mykey.arn
+      kms_master_key_id = aws_kms_key.gdpr_key.arn
       sse_algorithm     = "aws:kms"
     }
   }
 }
-resource "aws_s3_bucket_server_side_encryption_configuration" "secure_s3_log_bucket" {
-  bucket = aws_s3_bucket.log_bucket.id
+resource "aws_s3_bucket_server_side_encryption_configuration" "secure_s3_gdpr_s3_log_bucket" {
+  bucket = aws_s3_bucket.gdpr_s3_log_bucket.id
 
   rule {
     apply_server_side_encryption_by_default {
-      kms_master_key_id = aws_kms_key.mykey.arn
+      kms_master_key_id = aws_kms_key.gdpr_key.arn
       sse_algorithm     = "aws:kms"
     }
   }
@@ -215,13 +193,9 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "secure_s3_log_buc
 # ---------------------------------------------------------------------------------------------------------------------
 
 ## Security Group for EC2 Instance and RDS ##
-
-# Controls inbound and outbound traffic to your EC2 and RDS instances, restricting access 
-# to only necessary services (e.g., HTTP, SSH) and protecting the data within these 
-# instances from unauthorized access.
-resource "aws_security_group" "web_sg" {
-  name = "tf_web_sg"
-  vpc_id = aws_vpc.main.id
+resource "aws_security_group" "gdpr_web_sg" {
+  name = "gdpr_web_sg"
+  vpc_id = aws_vpc.gdpr_vpc.id
 
   # Allow HTTPS access from specific trusted IPs
   ingress {
@@ -250,17 +224,13 @@ resource "aws_security_group" "web_sg" {
   }
 
   tags = {
-    Name = "web_sg"
+    Name = "gdpr_web_sg"
   }
 }
 
 ## IAM Role for EC2 with Logging Permissions ##
-
-# Manages permissions for EC2 instances, ensuring that only authorized services and roles 
-# can access the S3 buckets. This enforces the principle of least privilege, which is crucial 
-# for GDPR compliance.
-resource "aws_iam_role" "example_ec2_role" {
-  name = "example_ec2_role"
+resource "aws_iam_role" "gdpr_ec2_role" {
+  name = "gdpr_ec2_role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -275,10 +245,11 @@ resource "aws_iam_role" "example_ec2_role" {
     ]
   })
 }
+
 ## IAM Role Policy for S3 Access ##
-resource "aws_iam_role_policy" "example_s3_policy" {
-  name = "example_s3_policy"
-  role = aws_iam_role.example_ec2_role.id
+resource "aws_iam_role_policy" "gdpr_s3_policy" {
+  name = "gdpr_s3_policy"
+  role = aws_iam_role.gdpr_ec2_role.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -291,15 +262,15 @@ resource "aws_iam_role_policy" "example_s3_policy" {
         ]
         Effect   = "Allow"
         Resource = [
-          aws_s3_bucket.mybucket.arn,
-          "${aws_s3_bucket.mybucket.arn}/*",
+          aws_s3_bucket.gdpr_s3_bucket.arn,
+          "${aws_s3_bucket.gdpr_s3_bucket.arn}/*",
         ]
       },
     ]
   })
 }
-resource "aws_s3_bucket_policy" "log_bucket_policy" {
-  bucket = aws_s3_bucket.log_bucket.id
+resource "aws_s3_bucket_policy" "gdpr_s3_log_bucket_policy" {
+  bucket = aws_s3_bucket.gdpr_s3_log_bucket.id
 
   policy = jsonencode({
     Version = "2012-10-17",
@@ -311,7 +282,7 @@ resource "aws_s3_bucket_policy" "log_bucket_policy" {
           Service = "cloudtrail.amazonaws.com"
         },
         Action = "s3:PutObject",
-        Resource = "${aws_s3_bucket.log_bucket.arn}/*",
+        Resource = "${aws_s3_bucket.gdpr_s3_log_bucket.arn}/*",
         Condition = {
           StringEquals = {
             "s3:x-amz-acl": "bucket-owner-full-control"
@@ -327,7 +298,7 @@ resource "aws_s3_bucket_policy" "log_bucket_policy" {
           "s3:GetBucketAcl",
           "s3:ListBucket"
         ],
-        Resource = "${aws_s3_bucket.log_bucket.arn}"
+        Resource = "${aws_s3_bucket.gdpr_s3_log_bucket.arn}"
       },
 
       # AWS Config permissions
@@ -337,9 +308,9 @@ resource "aws_s3_bucket_policy" "log_bucket_policy" {
           Service = "config.amazonaws.com"
         },
         Action = [
-          "s3:PutObject"       # Writing objects (requires /*)
+          "s3:PutObject"
         ],
-        Resource = "${aws_s3_bucket.log_bucket.arn}/*",  # Apply to all objects in the bucket
+        Resource = "${aws_s3_bucket.gdpr_s3_log_bucket.arn}/*",
       },
       # AWS Config permissions
       {
@@ -351,7 +322,7 @@ resource "aws_s3_bucket_policy" "log_bucket_policy" {
           "s3:GetBucketAcl",
           "s3:ListBucket"
         ],
-        Resource = "${aws_s3_bucket.log_bucket.arn}"
+        Resource = "${aws_s3_bucket.gdpr_s3_log_bucket.arn}"
       },
       # AWS Root User permissions
       {
@@ -360,16 +331,16 @@ resource "aws_s3_bucket_policy" "log_bucket_policy" {
           AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
         },
         Action = "s3:GetBucketAcl",
-        Resource = "${aws_s3_bucket.log_bucket.arn}"
+        Resource = "${aws_s3_bucket.gdpr_s3_log_bucket.arn}"
       }
     ]
   })
 }
 
 ## IAM Instance Profile for EC2 ##
-resource "aws_iam_instance_profile" "example_ec2_profile" {
-  name = "example_ec2_profile"
-  role = aws_iam_role.example_ec2_role.name
+resource "aws_iam_instance_profile" "gdpr_ec2_profile" {
+  name = "gdpr_ec2_profile"
+  role = aws_iam_role.gdpr_ec2_role.name
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -377,19 +348,15 @@ resource "aws_iam_instance_profile" "example_ec2_profile" {
 # ---------------------------------------------------------------------------------------------------------------------
 
 ## EC2 Instance ##
-
-# The EC2 instance is part of the GDPR-compliant infrastructure, configured within the VPC,
-# and governed by the security group, IAM role, and instance profile. The instance is not
-# publicly accessible, which protects any personal data processed on it.
-resource "aws_instance" "web_server" {
+resource "aws_instance" "gdpr_web_server" {
   ami           = "ami-03cc8375791cb8bcf"  # Ubuntu AMI
   instance_type = "t3.micro"
-  subnet_id     = aws_subnet.main_subnet.id
-  iam_instance_profile = aws_iam_instance_profile.example_ec2_profile.name
+  subnet_id     = aws_subnet.public_subnet.id
+  iam_instance_profile = aws_iam_instance_profile.gdpr_ec2_profile.name
   monitoring = true
 
   # Attach security group
-  vpc_security_group_ids = [aws_security_group.web_sg.id]
+  vpc_security_group_ids = [aws_security_group.gdpr_web_sg.id]
 
   user_data = <<-EOF
     #!/bin/bash
@@ -399,7 +366,7 @@ resource "aws_instance" "web_server" {
     EOF
 
   tags = {
-    Name = "web_server"
+    Name = "gdpr_web_server"
   }
 }
 
@@ -407,32 +374,28 @@ resource "aws_instance" "web_server" {
 #### Database Configuration ####
 # ---------------------------------------------------------------------------------------------------------------------
 
-# The PostgreSQL RDS instance is securely deployed within the VPC subnet, with encryption e
-# nabled for storage. It is also configured for high availability (Multi-AZ), ensuring that
-# personal data is both secure and available as required by GDPR.
-
 # RDS PostgreSQL Instance
-resource "aws_db_instance" "postgres_instance" {
+resource "aws_db_instance" "gdpr_db" {
   identifier = "tf-postgres-instance"
   allocated_storage    = 20
   engine               = "postgres"
   engine_version       = "15.4"
   instance_class       = "db.t3.micro"
-  db_name              = "mydb"
+  db_name              = "gdpr_db"
   username             = "postgres"
   password             = "postgres"
   parameter_group_name = "default.postgres15"
-  db_subnet_group_name = aws_db_subnet_group.db_main.name
-  vpc_security_group_ids = [aws_security_group.web_sg.id]
+  db_subnet_group_name = aws_db_subnet_group.gdpr_db_subnet_group.name
+  vpc_security_group_ids = [aws_security_group.gdpr_web_sg.id]
   multi_az             = true
   publicly_accessible  = false
   storage_encrypted    = true
-  kms_key_id           = aws_kms_key.mykey.arn
+  kms_key_id           = aws_kms_key.gdpr_key.arn
   backup_retention_period = 7
   delete_automated_backups = true
 
   tags = {
-    Name = "postgres_instance"
+    Name = "gdpr_db"
     Environment = "production"
   }
 }
@@ -442,13 +405,9 @@ resource "aws_db_instance" "postgres_instance" {
 # ---------------------------------------------------------------------------------------------------------------------
 
 ## Enable CloudTrail for logging ##
-
-# CloudTrail logs all API calls made in your AWS account, providing a comprehensive audit
-# trail of activities. This helps in detecting, investigating, and responding to security
-# incidents, fulfilling GDPR’s accountability and transparency requirements.
-resource "aws_cloudtrail" "main" {
-  name                          = "main-cloudtrail"
-  s3_bucket_name                = aws_s3_bucket.log_bucket.id
+resource "aws_cloudtrail" "gdpr_cloudtrail" {
+  name                          = "gdpr-cloudtrail"
+  s3_bucket_name                = aws_s3_bucket.gdpr_s3_log_bucket.id
   include_global_service_events = true
   is_multi_region_trail         = true
   enable_logging                = true
@@ -459,22 +418,18 @@ resource "aws_cloudtrail" "main" {
     data_resource {
       type = "AWS::S3::Object"
       values = [
-        "arn:aws:s3:::${aws_s3_bucket.log_bucket.id}/*"
+        "arn:aws:s3:::${aws_s3_bucket.gdpr_s3_log_bucket.id}/*"
       ]
     }
   }
 }
 
 ## AWS Config Delivery Channel ##
-
-# Config continuously monitors your AWS resources, ensuring that they remain compliant with
-# predefined configurations. This helps in maintaining an auditable record of the environment’s
-# compliance status, which is crucial for GDPR.
-resource "aws_config_delivery_channel" "main" {
-  name           = "main"
-  s3_bucket_name = aws_s3_bucket.log_bucket.bucket
+resource "aws_config_delivery_channel" "gdpr_log_delivery" {
+  name           = "gdpr-log-delivery"
+  s3_bucket_name = aws_s3_bucket.gdpr_s3_log_bucket.bucket
   s3_key_prefix   = "aws-config-logs"
-  s3_kms_key_arn = aws_kms_key.mykey.arn
+  s3_kms_key_arn = aws_kms_key.gdpr_key.arn
 }
 
 
