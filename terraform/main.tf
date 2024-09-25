@@ -1,31 +1,31 @@
-# GDPR Compliant AWS VPC Environment
-
-# The General Data Protection Regulation (GDPR) is a European Union regulation that mandates stringent data
-# protection and privacy requirements for all companies handling EU citizens' data. To ensure GDPR compliance
-# in an AWS environment, the following aspects are essential:
-
-# Data Encryption - Both at rest and in transit, data should be
-# encrypted using strong encryption methods (e.g., AES-256).
-
-# Access Controls - Strict IAM roles and policies must be enforced
-# to ensure only authorized entities can access personal data.
-
-# Auditability - Enable logging and monitoring to ensure that all
-# access to personal data is auditable.
-
-# Data Residency - Ensure that data is stored in compliant regions
-# (e.g., within the EU).
-
-# Data Minimization - Ensure that only necessary data is collected
-# and processed.
-
-# Incident Response - Set up mechanisms for data breach detection
-# and notification.
-
-# ---------------------------------------------------------------------------------------------------------------------
-#### AWS Provider Configuration ####
-# ---------------------------------------------------------------------------------------------------------------------
-
+# # GDPR Compliant AWS VPC Environment
+#
+# # The General Data Protection Regulation (GDPR) is a European Union regulation that mandates stringent data
+# # protection and privacy requirements for all companies handling EU citizens' data. To ensure GDPR compliance
+# # in an AWS environment, the following aspects are essential:
+#
+# # Data Encryption - Both at rest and in transit, data should be
+# # encrypted using strong encryption methods (e.g., AES-256).
+#
+# # Access Controls - Strict IAM roles and policies must be enforced
+# # to ensure only authorized entities can access personal data.
+#
+# # Auditability - Enable logging and monitoring to ensure that all
+# # access to personal data is auditable.
+#
+# # Data Residency - Ensure that data is stored in compliant regions
+# # (e.g., within the EU).
+#
+# # Data Minimization - Ensure that only necessary data is collected
+# # and processed.
+#
+# # Incident Response - Set up mechanisms for data breach detection
+# # and notification.
+#
+# # ---------------------------------------------------------------------------------------------------------------------
+# #### AWS Provider Configuration ####
+# # ---------------------------------------------------------------------------------------------------------------------
+#
 provider "aws" {
   region     = "eu-west-1"
 
@@ -33,7 +33,7 @@ provider "aws" {
 #   access_key = ""
 #   secret_key = ""
 }
-
+#
 # ---------------------------------------------------------------------------------------------------------------------
 #### Networking Resources ####
 # ---------------------------------------------------------------------------------------------------------------------
@@ -349,7 +349,7 @@ resource "aws_iam_instance_profile" "gdpr_ec2_profile" {
 
 ## EC2 Instance ##
 resource "aws_instance" "gdpr_web_server" {
-  ami           = "ami-03cc8375791cb8bcf"  # Ubuntu AMI
+  ami           = "ami-03cc8375791cb8bcf"
   instance_type = "t3.micro"
   subnet_id     = aws_subnet.public_subnet.id
   iam_instance_profile = aws_iam_instance_profile.gdpr_ec2_profile.name
@@ -376,7 +376,7 @@ resource "aws_instance" "gdpr_web_server" {
 
 # RDS PostgreSQL Instance
 resource "aws_db_instance" "gdpr_db" {
-  identifier = "tf-postgres-instance"
+  identifier = "gdpr-db"
   allocated_storage    = 20
   engine               = "postgres"
   engine_version       = "15.4"
@@ -393,6 +393,7 @@ resource "aws_db_instance" "gdpr_db" {
   kms_key_id           = aws_kms_key.gdpr_key.arn
   backup_retention_period = 7
   delete_automated_backups = true
+  skip_final_snapshot = true
 
   tags = {
     Name = "gdpr_db"
